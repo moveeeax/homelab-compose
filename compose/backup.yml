@@ -1,0 +1,26 @@
+# Scheduled restic backups. A tiny cron loop runs `restic backup`
+# on BACKUP_CRON and prunes according to the retention policy.
+services:
+  backup:
+    build: ../backup
+    image: homelab-backup:local
+    container_name: backup
+    restart: unless-stopped
+    hostname: homelab
+    environment:
+      - TZ=${TZ}
+      - RESTIC_REPOSITORY=${RESTIC_REPOSITORY}
+      - RESTIC_PASSWORD=${RESTIC_PASSWORD}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - BACKUP_CRON=${BACKUP_CRON}
+      - RESTIC_KEEP_DAILY=${RESTIC_KEEP_DAILY}
+      - RESTIC_KEEP_WEEKLY=${RESTIC_KEEP_WEEKLY}
+    volumes:
+      - ${BACKUP_SOURCE}:/data:ro
+      - restic-cache:/root/.cache/restic
+    networks:
+      - internal
+
+volumes:
+  restic-cache:

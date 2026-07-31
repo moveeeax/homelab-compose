@@ -1,0 +1,15 @@
+# Local secrets / config
+.env
+
+# Runtime data
+/data/
+acme.json
+
+# Logs
+*.log
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
