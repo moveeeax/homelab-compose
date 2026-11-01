@@ -14,14 +14,17 @@ and backups without hand-writing any of it.
 
 ## What's inside
 
-| Service        | Image                        | Purpose                                        |
-| -------------- | ---------------------------- | ---------------------------------------------- |
-| `traefik`      | `traefik:v3.1`               | Reverse proxy, automatic Let's Encrypt TLS, dashboard |
-| `prometheus`   | `prom/prometheus:v2.54.1`    | Metrics store, scrapes the exporters below     |
-| `grafana`      | `grafana/grafana:11.2.0`     | Dashboards, provisioned datasource + panels    |
-| `node-exporter`| `prom/node-exporter:v1.8.2`  | Host CPU / memory / disk metrics               |
-| `cadvisor`     | `gcr.io/cadvisor/cadvisor`   | Per-container metrics                          |
-| `backup`       | built from `backup/`         | `restic` snapshots on a cron schedule + prune  |
+| Service        | Image                              | Purpose                                        |
+| -------------- | ---------------------------------- | ---------------------------------------------- |
+| `traefik`      | `traefik:v3.7.17`                  | Reverse proxy, automatic Let's Encrypt TLS, dashboard |
+| `prometheus`   | `prom/prometheus:v3.15.1`          | Metrics store, scrapes the exporters below     |
+| `grafana`      | `grafana/grafana:13.3.0`           | Dashboards, provisioned datasource + panels    |
+| `node-exporter`| `prom/node-exporter:v1.12.1`       | Host CPU / memory / disk metrics               |
+| `cadvisor`     | `ghcr.io/google/cadvisor:v0.60.6`  | Per-container metrics                          |
+| `backup`       | built from `backup/` (`restic/restic:0.19.1`) | `restic` snapshots on a cron schedule + prune  |
+
+Images are pinned to exact versions; bump them deliberately and read the
+upstream release notes first.
 
 ## How it works
 
@@ -70,7 +73,7 @@ $ make validate
 ==> docker compose config
     ok
 ==> pytest
-10 passed in 0.20s
+12 passed in 0.20s
 ```
 
 Force a backup or run a restore drill:
@@ -99,6 +102,21 @@ Everything is set through `.env` (see `.env.example` for the annotated list):
 | `BACKUP_SOURCE`            | Host directory backed up (read-only)               |
 | `BACKUP_CRON`              | Backup schedule (crontab format)                   |
 | `RESTIC_KEEP_DAILY/WEEKLY` | Retention policy for `restic forget`               |
+
+## Upgrading an existing install
+
+Prometheus and Grafana migrate their on-disk data when a newer major
+version starts for the first time, and the older version cannot read the
+migrated data after a downgrade:
+
+- Prometheus v3 TSDB data can only be read by v2.55 or newer
+  ([migration guide](https://github.com/prometheus/prometheus/blob/main/docs/migration.md#tsdb-format-and-downgrade)).
+- Grafana 12 rewrites the annotation table and Grafana 13 moves dashboards
+  and folders to unified storage; rolling back needs a database backup
+  ([upgrade guides](https://github.com/grafana/grafana/tree/main/docs/sources/upgrade-guide)).
+
+Before pulling new images on a running stack, stop it and copy the
+`prometheus-data` and `grafana-data` volumes somewhere safe.
 
 ## Teardown
 
