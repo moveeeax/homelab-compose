@@ -100,6 +100,21 @@ def test_grafana_routed_and_datasource_points_to_prometheus():
     assert prom["url"] == "http://prometheus:9090"
 
 
+def test_dashboard_panels_reference_provisioned_datasource_uid():
+    ds = _load_yaml("grafana/provisioning/datasources/datasource.yml")
+    uids = {d.get("uid") for d in ds["datasources"]}
+    with open(_path("grafana/provisioning/dashboards/homelab-overview.json")) as fh:
+        dash = json.load(fh)
+    for panel in dash["panels"]:
+        refs = [panel.get("datasource")] + [t.get("datasource") for t in panel["targets"]]
+        for ref in refs:
+            if isinstance(ref, dict) and "uid" in ref:
+                assert ref["uid"] in uids, (
+                    f"panel {panel['title']!r} uses datasource uid {ref['uid']!r}, "
+                    f"provisioned uids are {sorted(u for u in uids if u)}"
+                )
+
+
 def test_prometheus_scrapes_all_exporters():
     prom = _load_yaml("prometheus/prometheus.yml")
     jobs = {c["job_name"] for c in prom["scrape_configs"]}
