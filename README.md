@@ -116,7 +116,9 @@ migrated data after a downgrade:
   ([upgrade guides](https://github.com/grafana/grafana/tree/main/docs/sources/upgrade-guide)).
 
 Before pulling new images on a running stack, stop it and copy the
-`prometheus-data` and `grafana-data` volumes somewhere safe.
+`prometheus-data` and `grafana-data` volumes somewhere safe. The compose
+project is named `homelab`, so `docker volume ls` shows them as
+`homelab_prometheus-data` and `homelab_grafana-data`.
 
 ## Teardown
 

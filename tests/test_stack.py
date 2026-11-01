@@ -128,6 +128,9 @@ def test_dashboard_filesystem_query_matches_node_exporter_mountpoint():
     with open(_path("grafana/provisioning/dashboards/homelab-overview.json")) as fh:
         dash = json.load(fh)
     exprs = [t["expr"] for p in dash["panels"] for t in p["targets"]]
+    assert any('mountpoint="/"' in e for e in exprs), (
+        'no panel queries the host root filesystem as mountpoint="/"'
+    )
     for expr in exprs:
         for mp in re.findall(r'mountpoint="([^"]*)"', expr):
             assert not mp.startswith(rootfs[0]), (
