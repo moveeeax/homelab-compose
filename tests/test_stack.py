@@ -115,6 +115,27 @@ def test_dashboard_panels_reference_provisioned_datasource_uid():
                 )
 
 
+def test_dashboard_filesystem_query_matches_node_exporter_mountpoint():
+    # node-exporter strips --path.rootfs from mountpoint labels, so with
+    # --path.rootfs=/host the host root filesystem is reported as "/".
+    mon = _load_yaml("compose/monitoring.yml")
+    rootfs = [
+        a.split("=", 1)[1]
+        for a in mon["services"]["node-exporter"]["command"]
+        if a.startswith("--path.rootfs=")
+    ]
+    assert rootfs, "node-exporter must run with --path.rootfs"
+    with open(_path("grafana/provisioning/dashboards/homelab-overview.json")) as fh:
+        dash = json.load(fh)
+    exprs = [t["expr"] for p in dash["panels"] for t in p["targets"]]
+    for expr in exprs:
+        for mp in re.findall(r'mountpoint="([^"]*)"', expr):
+            assert not mp.startswith(rootfs[0]), (
+                f"query filters on mountpoint={mp!r}, but node-exporter strips "
+                f"the {rootfs[0]!r} prefix: {expr}"
+            )
+
+
 def test_prometheus_scrapes_all_exporters():
     prom = _load_yaml("prometheus/prometheus.yml")
     jobs = {c["job_name"] for c in prom["scrape_configs"]}
