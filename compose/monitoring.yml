@@ -19,7 +19,7 @@ services:
       - traefik.enable=false
 
   grafana:
-    image: grafana/grafana:11.2.0
+    image: grafana/grafana:13.3.0
     container_name: grafana
     restart: unless-stopped
     depends_on:
