@@ -100,6 +100,45 @@ def test_grafana_routed_and_datasource_points_to_prometheus():
     assert prom["url"] == "http://prometheus:9090"
 
 
+def test_dashboard_panels_reference_provisioned_datasource_uid():
+    ds = _load_yaml("grafana/provisioning/datasources/datasource.yml")
+    uids = {d.get("uid") for d in ds["datasources"]}
+    with open(_path("grafana/provisioning/dashboards/homelab-overview.json")) as fh:
+        dash = json.load(fh)
+    for panel in dash["panels"]:
+        refs = [panel.get("datasource")] + [t.get("datasource") for t in panel["targets"]]
+        for ref in refs:
+            if isinstance(ref, dict) and "uid" in ref:
+                assert ref["uid"] in uids, (
+                    f"panel {panel['title']!r} uses datasource uid {ref['uid']!r}, "
+                    f"provisioned uids are {sorted(u for u in uids if u)}"
+                )
+
+
+def test_dashboard_filesystem_query_matches_node_exporter_mountpoint():
+    # node-exporter strips --path.rootfs from mountpoint labels, so with
+    # --path.rootfs=/host the host root filesystem is reported as "/".
+    mon = _load_yaml("compose/monitoring.yml")
+    rootfs = [
+        a.split("=", 1)[1]
+        for a in mon["services"]["node-exporter"]["command"]
+        if a.startswith("--path.rootfs=")
+    ]
+    assert rootfs, "node-exporter must run with --path.rootfs"
+    with open(_path("grafana/provisioning/dashboards/homelab-overview.json")) as fh:
+        dash = json.load(fh)
+    exprs = [t["expr"] for p in dash["panels"] for t in p["targets"]]
+    assert any('mountpoint="/"' in e for e in exprs), (
+        'no panel queries the host root filesystem as mountpoint="/"'
+    )
+    for expr in exprs:
+        for mp in re.findall(r'mountpoint="([^"]*)"', expr):
+            assert not mp.startswith(rootfs[0]), (
+                f"query filters on mountpoint={mp!r}, but node-exporter strips "
+                f"the {rootfs[0]!r} prefix: {expr}"
+            )
+
+
 def test_prometheus_scrapes_all_exporters():
     prom = _load_yaml("prometheus/prometheus.yml")
     jobs = {c["job_name"] for c in prom["scrape_configs"]}

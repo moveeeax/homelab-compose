@@ -2,7 +2,7 @@
 # prewired dashboards and is published through Traefik.
 services:
   prometheus:
-    image: prom/prometheus:v2.54.1
+    image: prom/prometheus:v3.15.1
     container_name: prometheus
     restart: unless-stopped
     command:
@@ -19,7 +19,7 @@ services:
       - traefik.enable=false
 
   grafana:
-    image: grafana/grafana:11.2.0
+    image: grafana/grafana:13.3.0
     container_name: grafana
     restart: unless-stopped
     depends_on:
@@ -45,7 +45,7 @@ services:
       - traefik.http.services.grafana.loadbalancer.server.port=3000
 
   node-exporter:
-    image: prom/node-exporter:v1.8.2
+    image: prom/node-exporter:v1.12.1
     container_name: node-exporter
     restart: unless-stopped
     command:
@@ -57,7 +57,7 @@ services:
       - internal
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: ghcr.io/google/cadvisor:v0.60.6
     container_name: cadvisor
     restart: unless-stopped
     privileged: true

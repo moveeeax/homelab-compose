@@ -1,4 +1,4 @@
-FROM restic/restic:0.17.1
+FROM restic/restic:0.19.1
 
 # restic's base image is Alpine; add a cron daemon and bash for the loop.
 RUN apk add --no-cache dcron bash coreutils
