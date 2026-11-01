@@ -2,7 +2,7 @@
 # prewired dashboards and is published through Traefik.
 services:
   prometheus:
-    image: prom/prometheus:v2.54.1
+    image: prom/prometheus:v3.15.1
     container_name: prometheus
     restart: unless-stopped
     command:
