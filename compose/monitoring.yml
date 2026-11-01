@@ -45,7 +45,7 @@ services:
       - traefik.http.services.grafana.loadbalancer.server.port=3000
 
   node-exporter:
-    image: prom/node-exporter:v1.8.2
+    image: prom/node-exporter:v1.12.1
     container_name: node-exporter
     restart: unless-stopped
     command:
@@ -57,7 +57,7 @@ services:
       - internal
 
   cadvisor:
-    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    image: ghcr.io/google/cadvisor:v0.60.6
     container_name: cadvisor
     restart: unless-stopped
     privileged: true
