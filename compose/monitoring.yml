@@ -12,6 +12,7 @@ services:
       - --web.enable-lifecycle
     volumes:
       - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../prometheus/rules:/etc/prometheus/rules:ro
       - prometheus-data:/prometheus
     networks:
       - internal
@@ -50,9 +51,12 @@ services:
     restart: unless-stopped
     command:
       - --path.rootfs=/host
+      # backup.prom from the backup service (compose/backup.yml).
+      - --collector.textfile.directory=/textfile
     pid: host
     volumes:
       - /:/host:ro,rslave
+      - backup-metrics:/textfile:ro
     networks:
       - internal
 

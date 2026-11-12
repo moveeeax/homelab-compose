@@ -2,6 +2,9 @@
 # Initialise the restic repo (once) and install the backup cron job.
 set -euo pipefail
 
+# shellcheck source-path=SCRIPTDIR source=metrics.sh
+source /usr/local/bin/metrics.sh
+
 : "${BACKUP_CRON:=0 3 * * *}"
 
 echo "homelab-backup: repository=${RESTIC_REPOSITORY:?set RESTIC_REPOSITORY}"
@@ -11,6 +14,11 @@ if ! restic cat config >/dev/null 2>&1; then
   echo "homelab-backup: initialising new restic repository"
   restic init
 fi
+
+# Publish the metrics file right away (keeping values from earlier runs), so
+# node-exporter exports the stale threshold before the first scheduled run.
+metrics_load
+metrics_write
 
 LOG=/var/log/backup.log
 touch "$LOG"
@@ -23,6 +31,10 @@ touch "$LOG"
   echo "RESTIC_KEEP_WEEKLY=${RESTIC_KEEP_WEEKLY:-4}"
   echo "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID:-}"
   echo "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY:-}"
+  echo "BACKUP_METRICS_DIR=${METRICS_DIR}"
+  echo "BACKUP_STALE_AFTER_SECONDS=${STALE_AFTER}"
+  echo "BACKUP_NOTIFY_URL=${BACKUP_NOTIFY_URL:-}"
+  echo "BACKUP_NOTIFY_FAIL_URL=${BACKUP_NOTIFY_FAIL_URL:-}"
   echo "${BACKUP_CRON} /usr/local/bin/backup.sh >> ${LOG} 2>&1"
 } > /etc/crontabs/root
 

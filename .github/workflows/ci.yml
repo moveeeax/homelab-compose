@@ -19,3 +19,12 @@ jobs:
 
       - name: Run tests
         run: python3 -m pytest -v
+
+      - name: Shellcheck
+        run: shellcheck -x backup/*.sh scripts/*.sh
+
+      - name: Check Prometheus config and alert rules
+        run: |
+          docker run --rm --entrypoint promtool \
+            -v "$PWD/prometheus:/etc/prometheus:ro" \
+            prom/prometheus:v3.15.1 check config /etc/prometheus/prometheus.yml

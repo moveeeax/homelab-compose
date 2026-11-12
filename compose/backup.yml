@@ -1,5 +1,6 @@
 # Scheduled restic backups. A tiny cron loop runs `restic backup`
-# on BACKUP_CRON and prunes according to the retention policy.
+# on BACKUP_CRON and prunes according to the retention policy. Each run
+# writes its outcome to /metrics/backup.prom, which node-exporter exports.
 services:
   backup:
     build: ../backup
@@ -16,11 +17,18 @@ services:
       - BACKUP_CRON=${BACKUP_CRON}
       - RESTIC_KEEP_DAILY=${RESTIC_KEEP_DAILY}
       - RESTIC_KEEP_WEEKLY=${RESTIC_KEEP_WEEKLY}
+      - BACKUP_METRICS_DIR=/metrics
+      - BACKUP_STALE_AFTER_SECONDS=${BACKUP_STALE_AFTER_SECONDS:-93600}
+      - BACKUP_NOTIFY_URL=${BACKUP_NOTIFY_URL:-}
+      - BACKUP_NOTIFY_FAIL_URL=${BACKUP_NOTIFY_FAIL_URL:-}
     volumes:
       - ${BACKUP_SOURCE}:/data:ro
       - restic-cache:/root/.cache/restic
+      - backup-metrics:/metrics
     networks:
       - internal
 
 volumes:
   restic-cache:
+  # Shared with node-exporter's textfile collector (compose/monitoring.yml).
+  backup-metrics:

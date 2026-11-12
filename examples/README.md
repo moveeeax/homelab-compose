@@ -44,3 +44,26 @@ docker compose exec backup backup.sh
 # restore the latest snapshot into /restore inside the container
 docker compose exec backup restore.sh /restore
 ```
+
+## Backup alerts to your phone
+
+Ping a [healthchecks.io](https://healthchecks.io/) check after every run.
+Failures go to the same URL with `/fail` appended, and the check also alerts
+when pings stop arriving:
+
+```dotenv
+BACKUP_NOTIFY_URL=https://hc-ping.com/your-check-uuid
+```
+
+Or post to an [ntfy](https://ntfy.sh/) topic on both outcomes:
+
+```dotenv
+BACKUP_NOTIFY_URL=https://ntfy.sh/my-homelab-backups
+BACKUP_NOTIFY_FAIL_URL=https://ntfy.sh/my-homelab-backups
+```
+
+With a 6-hourly `BACKUP_CRON`, tighten the stale alert to 7 hours:
+
+```dotenv
+BACKUP_STALE_AFTER_SECONDS=25200
+```
