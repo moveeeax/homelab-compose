@@ -46,6 +46,43 @@ Prometheus datasource and a "Homelab Overview" dashboard, so metrics show up on
 first boot. The backup container runs a small cron loop that calls
 `restic backup` and `restic forget --prune` on the schedule you set.
 
+## Backup monitoring
+
+Every backup run writes its outcome to `backup.prom` on the `backup-metrics`
+volume. node-exporter mounts the same volume and exports the file through its
+textfile collector (`--collector.textfile.directory`), so Prometheus scrapes
+it with the rest of the host metrics:
+
+| Metric                                  | Meaning                                              |
+| --------------------------------------- | ---------------------------------------------------- |
+| `homelab_backup_last_success_timestamp` | Unix time of the last successful run                 |
+| `homelab_backup_duration_seconds`       | Duration of that run (backup + forget + prune)       |
+| `homelab_backup_bytes_added`            | Bytes it added to the repository (restic `data_added`) |
+| `homelab_backup_snapshot_count`         | Snapshots tagged `homelab` after it                  |
+| `homelab_backup_last_run_timestamp`     | Unix time the last run finished, success or not      |
+| `homelab_backup_last_run_success`       | `1` if the last run succeeded, `0` if it failed      |
+| `homelab_backup_stale_after_seconds`    | `BACKUP_STALE_AFTER_SECONDS`, used by `BackupStale`  |
+
+A failed run only updates the `last_run_*` series; the success metrics keep
+the values from the last good run. Any non-zero restic exit counts as a
+failure, including exit code 3 (some source files could not be read).
+
+The "Homelab Overview" dashboard has a backup row built on these metrics, and
+`prometheus/rules/backup.yml` defines three alerts:
+
+- `BackupStale`: the last success is older than `BACKUP_STALE_AFTER_SECONDS`
+  (default 26h, sized for a daily `BACKUP_CRON`).
+- `BackupFailed`: the most recent run failed.
+- `BackupMetricsMissing`: node-exporter has not exported `backup.prom` for an
+  hour, so the other two cannot fire.
+
+The stack has no Alertmanager: firing alerts show on the Prometheus `/alerts`
+page. To get pushed, set `BACKUP_NOTIFY_URL`. After each run the backup
+container POSTs a one-line summary to it on success, and to
+`BACKUP_NOTIFY_FAIL_URL` (default `${BACKUP_NOTIFY_URL}/fail`) on failure.
+That matches healthchecks.io ping URLs as-is; for ntfy, set both variables to
+the topic URL. A failed ping is logged and does not fail the backup.
+
 ## Usage
 
 Copy the sample env, edit domains and secrets, and bring the stack up:
@@ -73,7 +110,7 @@ $ make validate
 ==> docker compose config
     ok
 ==> pytest
-12 passed in 0.20s
+20 passed in 1.20s
 ```
 
 Force a backup or run a restore drill:
@@ -102,6 +139,9 @@ Everything is set through `.env` (see `.env.example` for the annotated list):
 | `BACKUP_SOURCE`            | Host directory backed up (read-only)               |
 | `BACKUP_CRON`              | Backup schedule (crontab format)                   |
 | `RESTIC_KEEP_DAILY/WEEKLY` | Retention policy for `restic forget`               |
+| `BACKUP_STALE_AFTER_SECONDS` | Age of the last success that fires `BackupStale` (default 26h) |
+| `BACKUP_NOTIFY_URL`        | Optional ping URL after each run (healthchecks.io, ntfy) |
+| `BACKUP_NOTIFY_FAIL_URL`   | Failure ping URL (default `${BACKUP_NOTIFY_URL}/fail`) |
 
 ## Upgrading an existing install
 
@@ -134,7 +174,8 @@ Your restic repository lives outside the stack (`RESTIC_REPOSITORY`), so
 
 The `tests/` suite parses every YAML/JSON file, checks that the compose files
 only reference variables documented in `.env.example`, verifies the exporters
-are wired to Prometheus and Grafana, and — when Docker is present — renders the
+are wired to Prometheus and Grafana, runs `backup.sh` against a stub
+`restic` to check the metrics file and notify pings, and — when Docker is present — renders the
 merged model with `docker compose config`. Run it with `make test`.
 
 ## License

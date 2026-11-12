@@ -1,0 +1,46 @@
+# Backup alerts, fed by backup.prom from the backup service via
+# node-exporter's textfile collector. Prometheus evaluates them and lists
+# firing alerts at /alerts; no Alertmanager ships with the stack.
+groups:
+  - name: backup
+    rules:
+      - alert: BackupStale
+        # The threshold comes from BACKUP_STALE_AFTER_SECONDS (exported by
+        # the backup container), so it follows a non-daily BACKUP_CRON.
+        expr: >-
+          time() - homelab_backup_last_success_timestamp
+          > on(instance, job) homelab_backup_stale_after_seconds
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: No successful backup for over {{ $value | humanizeDuration }}
+          description: >-
+            The last successful restic run finished
+            {{ $value | humanizeDuration }} ago. Check
+            `docker compose logs backup`.
+
+      - alert: BackupFailed
+        expr: homelab_backup_last_run_success == 0
+        labels:
+          severity: warning
+        annotations:
+          summary: The last backup run failed
+          description: >-
+            The most recent restic run exited non-zero. Check
+            `docker compose logs backup` and run `make backup` to retry.
+
+      - alert: BackupMetricsMissing
+        # The backup container writes this series on startup. If it is
+        # absent, the container is down or the metrics volume is not shared
+        # with node-exporter, and BackupStale cannot fire.
+        expr: absent(homelab_backup_stale_after_seconds)
+        for: 1h
+        labels:
+          severity: warning
+        annotations:
+          summary: Backup status metrics are missing
+          description: >-
+            node-exporter does not export backup.prom. Check that the backup
+            container is running and that the backup-metrics volume is
+            mounted into node-exporter.
